@@ -10,10 +10,10 @@ def load_all_jsons(input_dir, output_dir):
 
     print("🥇 Gold:...\n")
 
-    # Create output folder if missing
+    # Create folder if missing
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # Check if silver folder exists
+    # Check silver folder exists
     if not input_path.exists():
 
         print("⚠️ Input directory does not exist")
@@ -22,8 +22,11 @@ def load_all_jsons(input_dir, output_dir):
         print("Total: 0 | Inserted: 0 | Skipped: 0")
         return
 
-    # Get all JSON files
+    # Read all json files
     files = list(input_path.glob("*.json"))
+
+    # Sort files (optional but cleaner)
+    files.sort()
 
     if len(files) == 0:
 
@@ -37,14 +40,14 @@ def load_all_jsons(input_dir, output_dir):
     inserted = 0
     skipped = 0
 
-    # Create database jobs
+    # Database path
     db_file = output_path / "jobs.db"
 
+    # Connect SQLite
     connection = sqlite3.connect(db_file)
     cursor = connection.cursor()
 
-    # Create table
-    # source_id is PRIMARY KEY
+    # Create jobs table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS jobs(
 
@@ -56,17 +59,17 @@ def load_all_jsons(input_dir, output_dir):
         )
     """)
 
-    # Read JSON files one by one
+    # Loop each JSON
     for file_path in files:
 
         try:
 
-            # open json
+            # Read JSON file
             data = json.loads(
                 file_path.read_text(encoding="utf-8")
             )
 
-            # insert into database
+            # Insert OR Ignore duplicate
             cursor.execute("""
                 INSERT OR IGNORE INTO jobs
 
@@ -82,7 +85,7 @@ def load_all_jsons(input_dir, output_dir):
                 None
             ))
 
-            # check if inserted
+            # If inserted
             if cursor.rowcount == 1:
 
                 print(f"✅ Inserted: {file_path.name}")
@@ -93,13 +96,14 @@ def load_all_jsons(input_dir, output_dir):
                 print(f"⏭️ Skipped (duplicate): {file_path.name}")
                 skipped += 1
 
-        except Exception:
+            # Save immediately
+            connection.commit()
+
+        except Exception as e:
 
             print(f"❌ Failed: {file_path.name}")
+            print(e)
             skipped += 1
-
-    # Save database
-    connection.commit()
 
     # Close database
     connection.close()
