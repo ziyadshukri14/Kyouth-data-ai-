@@ -43,7 +43,7 @@ def main():
             run_data_profile("data/3_gold/jobs.db")
 
         # FULL PIPELINE
-        case "full":
+        case "all":
             print("week_1 full pipeline start")
 
             ingest_all_mhtml(input_raw, bronze)
