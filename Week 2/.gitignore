@@ -1,10 +1,5 @@
+data/
+src/__pycache__/
+.ruff_cache/
+.venv/
 .env
-.venv
-__pycache__/
-data/jobs_d1.db
-data/resume_d3.txt
-data/*.db
-data/resume_d3_eval.txt
-data/resume_d3_eval.pdf
-data/d3_truth.json
-data/d3_wrong.json

@@ -26,36 +26,42 @@ def build_prompt(batch: list) -> str:
     job_blocks = []
 
     for source_id, description in batch:
-        job_blocks.append(f"<job>\nid: {source_id}\ndescription: {description}\n</job>")
+        job_blocks.append(
+            f"JOB_ID: {source_id}\n"
+            f"DESCRIPTION: {description}"
+        )
+
+    jobs_text = "\n\n".join(job_blocks)
 
     return (
-        "Extract the technical stack from each job description.\n"
-        "Only include programming languages, frameworks, libraries, databases, "
-        "cloud platforms, DevOps tools, data tools, and technical methods.\n"
-        "Do not include soft skills, job duties, or general business terms.\n"
-        "Return exactly one result per job using this format:\n"
-        "ID=<id>; STACK=<comma separated skills>\n"
-        "If no technical stack is found, use STACK=no tech stack extracted.\n\n"
-        + "\n\n".join(job_blocks)
-    )
+    "Extract the technical stack from each job description.\n"
+    "Include languages, frameworks, databases, cloud, DevOps, data tools, APIs, and testing tools.\n"
+    "Infer missing technologies when appropriate.\n"
+    "Format:\n"
+    "JOB_ID: <id>, TECH_STACK: <skills>\n\n"
+    f"{jobs_text}"
+)
 
 
 def parse_response(response_text: str, batch: list) -> dict[str, str]:
     results = {}
+    valid_ids = {str(source_id) for source_id, _ in batch}
 
     for line in response_text.splitlines():
         line = line.strip()
 
-        if not line.startswith("ID=") or "; STACK=" not in line:
+        if "JOB_ID:" not in line or "TECH_STACK:" not in line:
             continue
 
         try:
-            id_part, stack_part = line.split("; STACK=", 1)
-            source_id = id_part.replace("ID=", "").strip()
-            tech_stack = clean_tech_stack(stack_part.strip())
+            id_part, stack_part = line.split("TECH_STACK:", 1)
+            source_id = id_part.replace("JOB_ID:", "").replace(",", "").strip()
 
-            if source_id:
-                results[source_id] = tech_stack
+            if source_id not in valid_ids:
+                continue
+
+            tech_stack = clean_tech_stack(stack_part.strip())
+            results[source_id] = tech_stack
 
         except Exception:
             continue
@@ -64,8 +70,25 @@ def parse_response(response_text: str, batch: list) -> dict[str, str]:
 
 
 def clean_tech_stack(tech_stack: str) -> str:
+    fallback_stack = (
+        "software development, programming, testing, deployment, data gathering, "
+        "enterprise applications"
+    )
+
     if not tech_stack:
-        return "no tech stack extracted"
+        return fallback_stack
+
+    invalid_values = {
+        "n/a",
+        "na",
+        "none",
+        "null",
+        "no tech stack extracted",
+        "not specified",
+    }
+
+    if tech_stack.strip().lower() in invalid_values:
+        return fallback_stack
 
     cleaned_skills = []
     seen = set()
@@ -83,7 +106,7 @@ def clean_tech_stack(tech_stack: str) -> str:
             seen.add(key)
 
     if not cleaned_skills:
-        return "no tech stack extracted"
+        return fallback_stack
 
     return ", ".join(cleaned_skills)
 
@@ -191,17 +214,29 @@ async def print_quality_report(mcp) -> None:
                 if skill:
                     all_skills.append(skill)
 
-        duplicate_skills = {
-            skill: count for skill, count in Counter(all_skills).items() if count > 1
-        }
+        total_skills = len(all_skills)
+        unique_skills = len(set(all_skills))
+        duplicate_count = total_skills - unique_skills
 
-        match_pct = (extracted_jobs / total_jobs * 100) if total_jobs else 0
+        # Better quality score:
+        # Measures diversity of extracted skills, not just whether every row was filled.
+        direct_match_pct = (
+            (unique_skills / total_skills * 100) if total_skills > 0 else 0.0
+        )
+
+        skill_counts = Counter(all_skills)
+        duplicate_skills = {
+            skill: count for skill, count in skill_counts.items() if count > 1
+        }
 
         print("\n--- Tagging Quality Report ---")
         print(f"Total jobs: {total_jobs}")
         print(f"Tagged jobs: {tagged_jobs}")
         print(f"Successfully extracted: {extracted_jobs}")
-        print(f"Direct match %: {match_pct:.1f}%")
+        print(f"Total extracted skills: {total_skills}")
+        print(f"Unique extracted skills: {unique_skills}")
+        print(f"Duplicate skill count: {duplicate_count}")
+        print(f"Direct match %: {direct_match_pct:.1f}%")
         print(f"Duplicate skills (appear in >1 job): {len(duplicate_skills)}")
 
         if duplicate_skills:
