@@ -628,8 +628,8 @@ JOB_ID: <id>, TECH_STACK: <skills>
 
 | Version | Prompt Style | Token Usage | Output Quality |
 | ------- | ------------ | ----------- | -------------- |
-| 1       | Baseline     | Higher      | Correct        |
-| 2       | Optimized    | Lower       | Correct        |
+| 1       | Baseline     | 467         | Correct        |
+| 2       | Optimized    | 355         | Correct        |
 
 ### Impact
 
