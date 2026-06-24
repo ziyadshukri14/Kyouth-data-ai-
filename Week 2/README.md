@@ -665,4 +665,4 @@ Possible enhancements include:
 - Support for PDF resumes
 - Better skill matching for similar terms (e.g., `node.js` and `nodejs`)
 - Caching results to reduce repeated API calls
-- Adding automated test cases for validation and regression testing
+- Adding automated test cases for validation and regression test

@@ -26,21 +26,18 @@ def build_prompt(batch: list) -> str:
     job_blocks = []
 
     for source_id, description in batch:
-        job_blocks.append(
-            f"JOB_ID: {source_id}\n"
-            f"DESCRIPTION: {description}"
-        )
+        job_blocks.append(f"JOB_ID: {source_id}\nDESCRIPTION: {description}")
 
     jobs_text = "\n\n".join(job_blocks)
 
     return (
-    "Extract the technical stack from each job description.\n"
-    "Include languages, frameworks, databases, cloud, DevOps, data tools, APIs, and testing tools.\n"
-    "Infer missing technologies when appropriate.\n"
-    "Format:\n"
-    "JOB_ID: <id>, TECH_STACK: <skills>\n\n"
-    f"{jobs_text}"
-)
+        "Extract the technical stack from each job description.\n"
+        "Include languages, frameworks, databases, cloud, DevOps, data tools, APIs, and testing tools.\n"
+        "Infer missing technologies when appropriate.\n"
+        "Format:\n"
+        "JOB_ID: <id>, TECH_STACK: <skills>\n\n"
+        f"{jobs_text}"
+    )
 
 
 def parse_response(response_text: str, batch: list) -> dict[str, str]:
