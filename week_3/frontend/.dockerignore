@@ -1,0 +1,7 @@
+cat > week_3/frontend/.dockerignore <<'EOF'
+.venv
+__pycache__
+.ruff_cache
+.env
+.DS_Store
+EOF

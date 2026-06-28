@@ -1,0 +1,8 @@
+cat > week_3/.gitignore <<'EOF'
+.env
+.venv/
+__pycache__/
+.ruff_cache/
+.DS_Store
+*.pyc
+EOF

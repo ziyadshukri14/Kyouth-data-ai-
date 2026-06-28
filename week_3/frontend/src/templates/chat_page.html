@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Resume Skill Gap Assistant</title>
+
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous"
+    />
+
+    <style>
+      body {
+        background: #ffffff;
+        min-height: 100vh;
+      }
+
+      .page-wrapper {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 30px;
+      }
+
+      .chat-container {
+        width: 980px;
+        max-width: 100%;
+      }
+
+      .chat-box {
+        height: 420px;
+        overflow-y: auto;
+        background: #f7f8f4;
+        border: 1px solid #d8d8d8;
+        border-radius: 14px;
+        padding: 20px;
+      }
+
+      .message-row {
+        display: flex;
+        margin-bottom: 14px;
+        width: 100%;
+      }
+
+      .message-row.user {
+        justify-content: flex-end;
+      }
+
+      .message-row.bot {
+        justify-content: flex-start;
+      }
+
+      .message {
+        max-width: 70%;
+        padding: 12px 16px;
+        border-radius: 12px;
+        word-wrap: break-word;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        white-space: pre-wrap;
+      }
+
+      .user-message {
+        background: #5b4bb7;
+        color: white;
+      }
+
+      .bot-message {
+        background: white;
+        color: #212529;
+        border: 1px solid #eeeeee;
+      }
+
+      .input-box {
+        margin-top: 14px;
+        border: 1px solid #d8d8d8;
+        border-radius: 14px;
+        padding: 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: white;
+      }
+
+      .upload-button {
+        width: 42px;
+        height: 42px;
+        border: 1px solid #dddddd;
+        border-radius: 10px;
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 18px;
+      }
+
+      .upload-button:hover {
+        background: #f4f4f4;
+      }
+
+      #messageInput {
+        border: none;
+        outline: none;
+        flex: 1;
+      }
+
+      #messageInput:focus {
+        box-shadow: none;
+      }
+
+      .send-button {
+        background: #5b4bb7;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 10px 22px;
+      }
+
+      .send-button:hover {
+        background: #4b3da0;
+        color: white;
+      }
+
+      #fileStatus {
+        font-size: 13px;
+        color: #777;
+        margin-top: 8px;
+        padding-left: 5px;
+      }
+
+      .top-link {
+        text-align: right;
+        margin-bottom: 8px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="page-wrapper">
+      <div class="chat-container">
+        <div class="top-link">
+          <a href="/dashboard" class="btn btn-outline-secondary btn-sm">
+            Dashboard
+          </a>
+        </div>
+
+        <div id="messages" class="chat-box">
+          <div class="message-row bot">
+            <div class="message bot-message">Hi! How can I help you today?</div>
+          </div>
+        </div>
+
+        <div class="input-box">
+          <label for="resumeFile" class="upload-button" title="Upload PDF">
+            ⬆
+          </label>
+
+          <input type="file" id="resumeFile" accept="application/pdf" hidden />
+
+          <input
+            type="text"
+            id="messageInput"
+            class="form-control"
+            placeholder="Type a message..."
+          />
+
+          <button class="send-button" onclick="sendMessage()">Send</button>
+        </div>
+
+        <div id="fileStatus"></div>
+      </div>
+    </div>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+      crossorigin="anonymous"
+    ></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+    <script>
+      const BACKEND_URL = "{{ backend_url }}";
+      let resumeContent = "";
+
+      function addMessage(text, sender) {
+        const messages = document.getElementById("messages");
+
+        const row = document.createElement("div");
+        row.className =
+          sender === "user" ? "message-row user" : "message-row bot";
+
+        const message = document.createElement("div");
+        message.className =
+          sender === "user" ? "message user-message" : "message bot-message";
+
+        message.textContent = text;
+
+        row.appendChild(message);
+        messages.appendChild(row);
+        messages.scrollTop = messages.scrollHeight;
+      }
+
+      document
+        .getElementById("resumeFile")
+        .addEventListener("change", async function () {
+          const file = this.files[0];
+
+          if (!file) {
+            return;
+          }
+
+          document.getElementById("fileStatus").textContent =
+            "Reading PDF: " + file.name;
+
+          try {
+            const arrayBuffer = await file.arrayBuffer();
+
+            const pdf = await pdfjsLib.getDocument({
+              data: arrayBuffer,
+            }).promise;
+
+            let extractedText = "";
+
+            for (let page = 1; page <= pdf.numPages; page++) {
+              const currentPage = await pdf.getPage(page);
+              const content = await currentPage.getTextContent();
+
+              extractedText += content.items.map((item) => item.str).join(" ");
+
+              extractedText += "\n";
+            }
+
+            resumeContent = extractedText.trim();
+
+            if (resumeContent) {
+              document.getElementById("fileStatus").textContent =
+                "PDF uploaded successfully.";
+
+              addMessage("Resume uploaded successfully.", "bot");
+            } else {
+              document.getElementById("fileStatus").textContent =
+                "No text found in PDF.";
+
+              addMessage("Unable to extract text from PDF.", "bot");
+            }
+          } catch (error) {
+            document.getElementById("fileStatus").textContent =
+              "Failed to read PDF.";
+
+            addMessage("Error reading PDF.", "bot");
+          }
+        });
+
+      document
+        .getElementById("messageInput")
+        .addEventListener("keydown", function (event) {
+          if (event.key === "Enter") {
+            sendMessage();
+          }
+        });
+
+      async function sendMessage() {
+        const input = document.getElementById("messageInput");
+        const message = input.value.trim();
+
+        if (!message && !resumeContent) {
+          return;
+        }
+
+        addMessage(message || "[Resume Uploaded]", "user");
+        input.value = "";
+
+        try {
+          const response = await fetch(BACKEND_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              message: message,
+              pdf_text: resumeContent,
+            }),
+          });
+
+          const data = await response.json();
+
+          addMessage(data.reply || "No response from backend.", "bot");
+        } catch (error) {
+          addMessage(
+            "Backend is currently unavailable. Please start the backend server.",
+            "bot",
+          );
+        }
+
+        resumeContent = "";
+        document.getElementById("resumeFile").value = "";
+        document.getElementById("fileStatus").textContent = "";
+      }
+    </script>
+  </body>
+</html>
